@@ -1,0 +1,64 @@
+# macOS
+.DS_Store
+
+# python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# jupyter noise
+.ipynb_checkpoints/
+
+# editor / ide files
+.vscode/
+.idea/
+
+# local env and secrets
+.env
+.env.*
+
+# streamlit local state
+.streamlit/
+
+# test / build / coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+site/
+
+# local package metadata
+*.egg-info/
+.eggs/
+
+# logs
+*.log
+
+# large raw data that should stay local
+data/raw/twcs.csv
+
+# generated processed data
+data/processed/*.csv
+
+# trained artifacts
+models/*.pkl
+notebooks/models/
+
+# generated outputs
+outputs/sample_prediction.json
+outputs/curated_cases.json
+outputs/dataset_audit.json
+outputs/training_metrics.json
+
+# optional local notebook exports
+*.html

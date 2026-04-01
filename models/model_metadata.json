@@ -1,0 +1,79 @@
+{
+  "selected_model": "logistic_regression",
+  "feature_columns": [
+    "gender",
+    "SeniorCitizen",
+    "Dependents",
+    "tenure",
+    "PhoneService",
+    "DeviceProtection",
+    "TechSupport",
+    "Contract",
+    "PaperlessBilling",
+    "PaymentMethod",
+    "MonthlyCharges",
+    "TotalCharges",
+    "num_complaints",
+    "payment_risk",
+    "low_engagement",
+    "support_calls",
+    "tenure_group",
+    "high_value_customer",
+    "has_complaint",
+    "has_internet",
+    "fiber_user",
+    "complaint_text_length",
+    "complaint_negative_score",
+    "complaint_negative_flag",
+    "billing_issue_flag",
+    "technical_issue_flag",
+    "service_issue_flag"
+  ],
+  "numeric_columns": [
+    "SeniorCitizen",
+    "Dependents",
+    "tenure",
+    "PhoneService",
+    "DeviceProtection",
+    "TechSupport",
+    "PaperlessBilling",
+    "MonthlyCharges",
+    "TotalCharges",
+    "num_complaints",
+    "payment_risk",
+    "low_engagement",
+    "support_calls",
+    "high_value_customer",
+    "has_complaint",
+    "has_internet",
+    "fiber_user",
+    "complaint_text_length",
+    "complaint_negative_score",
+    "complaint_negative_flag",
+    "billing_issue_flag",
+    "technical_issue_flag",
+    "service_issue_flag"
+  ],
+  "categorical_columns": [
+    "gender",
+    "Contract",
+    "PaymentMethod",
+    "tenure_group"
+  ],
+  "train_shape": [
+    5634,
+    27
+  ],
+  "test_shape": [
+    1409,
+    27
+  ],
+  "processed_data_path": "/Users/pradhyumnakasula/Churn_Intelligence_Platform/data/processed/final_data.csv",
+  "best_model_path": "/Users/pradhyumnakasula/Churn_Intelligence_Platform/models/best_model_pipeline.pkl",
+  "target_distribution": {
+    "0": 5174,
+    "1": 1869
+  },
+  "synthetic_complaint_enrichment": true,
+  "random_state": 42
+}
