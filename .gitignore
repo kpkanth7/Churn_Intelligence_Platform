@@ -49,9 +49,12 @@ data/raw/twcs.csv
 
 # generated processed data
 data/processed/*.csv
+!data/processed/final_data.csv
+!data/processed/test_predictions.csv
 
 # trained artifacts
 models/*.pkl
+!models/best_model_pipeline.pkl
 notebooks/models/
 
 # generated outputs
@@ -59,6 +62,8 @@ outputs/sample_prediction.json
 outputs/curated_cases.json
 outputs/dataset_audit.json
 outputs/training_metrics.json
+!outputs/curated_cases.json
+!outputs/training_metrics.json
 
 # optional local notebook exports
 *.html

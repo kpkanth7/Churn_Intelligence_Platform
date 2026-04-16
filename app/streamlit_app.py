@@ -1,21 +1,37 @@
 from pathlib import Path
+import html
 import json
 import sys
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
-    # i push the project root onto sys.path so streamlit can import src cleanly from the app folder.
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.inference import build_curated_cases, get_global_feature_insights, load_model_bundle, predict_dataframe
+from src.inference import (  # noqa: E402
+    build_curated_cases,
+    get_global_feature_insights,
+    load_model_bundle,
+    predict_dataframe,
+    risk_band,
+)
 
 
 DATA_PATH = PROJECT_ROOT / "data" / "processed" / "final_data.csv"
 METRICS_PATH = PROJECT_ROOT / "outputs" / "training_metrics.json"
 CURATED_CASES_PATH = PROJECT_ROOT / "outputs" / "curated_cases.json"
+EDA_DIR = PROJECT_ROOT / "outputs" / "eda"
+
+RISK_ORDER = ["low", "medium", "high"]
+RISK_COLORS = {"low": "#0F9F7E", "medium": "#F0B429", "high": "#E85F5C"}
+RISK_COPY = {
+    "low": "Stable account. Keep the relationship warm.",
+    "medium": "Watch closely. A focused touchpoint can change the path.",
+    "high": "Move now. The customer needs a clear save motion.",
+}
 
 
 @st.cache_data
@@ -34,8 +50,30 @@ def load_metrics() -> pd.DataFrame:
     return pd.DataFrame.from_dict(metrics["models"], orient="index")
 
 
-def format_reason_block(reasons: str) -> list[str]:
-    return [reason.strip() for reason in str(reasons).split("|") if reason.strip()]
+@st.cache_data(show_spinner=False)
+def score_dataset_quick(dataset: pd.DataFrame, metadata: dict, _model) -> pd.DataFrame:
+    feature_frame = dataset.drop(columns=["customerID", "Churn", "complaints"], errors="ignore")
+    feature_frame = feature_frame[metadata["feature_columns"]].copy()
+    probabilities = _model.predict_proba(feature_frame)[:, 1]
+    predictions = _model.predict(feature_frame).astype(int)
+
+    scored = dataset[
+        [
+            "customerID",
+            "Churn",
+            "Contract",
+            "tenure",
+            "MonthlyCharges",
+            "PaymentMethod",
+            "num_complaints",
+            "support_calls",
+            "complaints",
+        ]
+    ].copy()
+    scored["churn_probability"] = probabilities
+    scored["predicted_churn"] = predictions
+    scored["risk_band"] = [risk_band(float(probability)) for probability in probabilities]
+    return scored
 
 
 @st.cache_data
@@ -45,20 +83,409 @@ def load_curated_cases() -> list[dict]:
     return build_curated_cases()
 
 
-def build_manual_input_form() -> pd.DataFrame:
-    # i keep the manual form opinionated so the demo feels guided instead of overwhelming.
-    st.subheader("Score A Custom Customer")
-    with st.form("manual_customer_input"):
-        col1, col2, col3 = st.columns(3)
+def inject_css() -> None:
+    st.markdown(
+        """
+        <style>
+        :root {
+            --ink: #15171A;
+            --muted: #596169;
+            --line: #D8DED7;
+            --paper: #FFFFFF;
+            --wash: #F6F8F5;
+            --mint: #0F9F7E;
+            --coral: #E85F5C;
+            --sky: #2A8FB8;
+            --sun: #F0B429;
+        }
 
-        with col1:
+        .stApp {
+            background:
+                linear-gradient(180deg, rgba(246, 248, 245, 0.96), rgba(255, 255, 255, 0.98)),
+                radial-gradient(circle at top left, rgba(15, 159, 126, 0.11), transparent 34%),
+                radial-gradient(circle at top right, rgba(232, 95, 92, 0.10), transparent 30%);
+            color: var(--ink);
+        }
+
+        section[data-testid="stSidebar"] {
+            background: #111714;
+            color: #F7FAF7;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        section[data-testid="stSidebar"] * {
+            color: #F7FAF7;
+        }
+
+        .block-container {
+            padding-top: 2.1rem;
+            padding-bottom: 3rem;
+            max-width: 1220px;
+        }
+
+        h1, h2, h3 {
+            letter-spacing: 0;
+            color: var(--ink);
+        }
+
+        div[data-testid="stMetric"] {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 1rem 1.05rem;
+            box-shadow: 0 14px 32px rgba(21, 23, 26, 0.07);
+        }
+
+        div[data-testid="stMetric"] label {
+            color: var(--muted);
+        }
+
+        div[data-testid="stTabs"] button {
+            border-radius: 8px 8px 0 0;
+        }
+
+        .stButton > button, .stFormSubmitButton > button {
+            border-radius: 8px;
+            border: 1px solid #111714;
+            background: #111714;
+            color: #FFFFFF;
+            font-weight: 700;
+        }
+
+        .stButton > button:hover, .stFormSubmitButton > button:hover {
+            border-color: var(--mint);
+            color: #FFFFFF;
+            background: var(--mint);
+        }
+
+        .c-topline {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: flex-start;
+            margin-bottom: 1.1rem;
+        }
+
+        .c-eyebrow {
+            color: var(--sky);
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+
+        .c-title {
+            font-size: clamp(2.1rem, 5vw, 4.4rem);
+            line-height: 1.02;
+            letter-spacing: 0;
+            margin: 0;
+            max-width: 860px;
+        }
+
+        .c-subtitle {
+            color: var(--muted);
+            font-size: 1.05rem;
+            line-height: 1.55;
+            max-width: 760px;
+            margin: 0.8rem 0 1.1rem;
+        }
+
+        .c-status {
+            background: #111714;
+            color: #FFFFFF;
+            border-radius: 8px;
+            padding: 0.7rem 0.85rem;
+            min-width: 165px;
+            text-align: center;
+            box-shadow: 0 14px 32px rgba(17, 23, 20, 0.20);
+        }
+
+        .c-status strong {
+            display: block;
+            font-size: 1.25rem;
+        }
+
+        .c-card {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 14px 34px rgba(21, 23, 26, 0.07);
+            min-height: 100%;
+        }
+
+        .c-card h3 {
+            margin: 0 0 0.35rem;
+            font-size: 1rem;
+        }
+
+        .c-small {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
+        .risk-card {
+            background: #111714;
+            color: #FFFFFF;
+            border-radius: 8px;
+            padding: 1.15rem;
+            box-shadow: 0 20px 40px rgba(17, 23, 20, 0.20);
+        }
+
+        .risk-card h2, .risk-card h3, .risk-card p {
+            color: #FFFFFF;
+        }
+
+        .risk-score {
+            font-size: clamp(2.4rem, 8vw, 4.3rem);
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: 0;
+            margin: 0.25rem 0;
+        }
+
+        .risk-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 8px;
+            padding: 0.33rem 0.58rem;
+            color: #111714;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .meter {
+            width: 100%;
+            height: 14px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.16);
+            margin: 0.85rem 0;
+        }
+
+        .meter > span {
+            display: block;
+            height: 100%;
+            border-radius: 8px;
+        }
+
+        .reason-list {
+            display: grid;
+            gap: 0.55rem;
+            margin-top: 0.7rem;
+        }
+
+        .reason-chip {
+            border: 1px solid var(--line);
+            background: #FFFFFF;
+            border-radius: 8px;
+            padding: 0.7rem 0.8rem;
+            line-height: 1.42;
+        }
+
+        .action-box {
+            border-left: 5px solid var(--mint);
+            background: #F4FBF8;
+            border-radius: 8px;
+            padding: 0.85rem 0.95rem;
+            color: #13241F;
+            font-weight: 650;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+        }
+
+        .profile-item {
+            background: #FFFFFF;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0.72rem 0.78rem;
+        }
+
+        .profile-item span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .profile-item strong {
+            word-break: break-word;
+        }
+
+        .case-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #FFFFFF;
+            padding: 1rem;
+            min-height: 100%;
+            box-shadow: 0 14px 32px rgba(21, 23, 26, 0.06);
+        }
+
+        .eda-caption {
+            color: var(--muted);
+            font-size: 0.86rem;
+            margin-top: 0.25rem;
+        }
+
+        @media (max-width: 720px) {
+            .c-topline {
+                display: block;
+            }
+
+            .c-status {
+                margin-top: 1rem;
+                text-align: left;
+            }
+
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def esc(value) -> str:
+    return html.escape(str(value))
+
+
+def format_reason_block(reasons: str) -> list[str]:
+    return [reason.strip() for reason in str(reasons).split("|") if reason.strip()]
+
+
+def format_probability(value: float) -> str:
+    return f"{value:.1%}"
+
+
+def card(title: str, value: str, detail: str, accent: str = "#0F9F7E") -> None:
+    st.markdown(
+        f"""
+        <div class="c-card" style="border-top: 4px solid {accent};">
+            <h3>{esc(title)}</h3>
+            <div style="font-size: 1.75rem; font-weight: 900; letter-spacing: 0;">{esc(value)}</div>
+            <div class="c-small">{esc(detail)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_header(dataset: pd.DataFrame, metadata: dict, metrics: pd.DataFrame) -> None:
+    selected_model = metadata["selected_model"].replace("_", " ").title()
+    selected_metrics = metrics.loc[metadata["selected_model"]]
+    churn_rate = dataset["Churn"].mean()
+
+    st.markdown(
+        f"""
+        <div class="c-topline">
+            <div>
+                <div class="c-eyebrow">Retention intelligence cockpit</div>
+                <h1 class="c-title">Find the customers most likely to leave, then choose the next move.</h1>
+                <p class="c-subtitle">
+                    Score live customer profiles, explain the risk drivers, and turn model output into a focused
+                    retention action without leaving the dashboard.
+                </p>
+            </div>
+            <div class="c-status">
+                <span>Selected model</span>
+                <strong>{esc(selected_model)}</strong>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        card("Customer records", f"{len(dataset):,}", "Processed Telco customer base", "#2A8FB8")
+    with col2:
+        card("Observed churn", format_probability(churn_rate), "Share of customers marked churned", "#E85F5C")
+    with col3:
+        card("ROC AUC", f"{selected_metrics['roc_auc']:.3f}", "Holdout ranking quality", "#0F9F7E")
+    with col4:
+        card("F1 score", f"{selected_metrics['f1']:.3f}", "Balanced precision and recall", "#F0B429")
+
+
+def render_risk_card(prediction: pd.Series, actual_churn=None, customer_id=None) -> None:
+    probability = float(prediction["churn_probability"])
+    band = str(prediction["risk_band"])
+    color = RISK_COLORS.get(band, "#2A8FB8")
+    label_color = "#FFFFFF" if band == "high" else "#111714"
+    meter_width = max(3, min(100, probability * 100))
+
+    st.markdown(
+        f"""
+        <div class="risk-card">
+            <div class="c-eyebrow" style="color: #9EE7D3;">Customer risk readout</div>
+            <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start;">
+                <div>
+                    <div class="risk-score">{format_probability(probability)}</div>
+                    <span class="risk-pill" style="background: {color}; color: {label_color};">
+                        {esc(band)} risk
+                    </span>
+                </div>
+                <div style="text-align: right;">
+                    <div class="c-small" style="color: rgba(255,255,255,0.72);">Customer</div>
+                    <strong>{esc(customer_id or "Custom input")}</strong>
+                    <div class="c-small" style="color: rgba(255,255,255,0.72); margin-top: 0.55rem;">Actual churn</div>
+                    <strong>{esc("-" if actual_churn is None else int(actual_churn))}</strong>
+                </div>
+            </div>
+            <div class="meter"><span style="width: {meter_width:.1f}%; background: {color};"></span></div>
+            <p style="margin-bottom: 0;">{esc(RISK_COPY.get(band, "Review this account closely."))}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_prediction_card(prediction: pd.Series, actual_churn=None, customer_id=None, complaint_text=None) -> None:
+    render_risk_card(prediction, actual_churn=actual_churn, customer_id=customer_id)
+
+    st.markdown("### Risk Drivers")
+    reasons_html = "".join(
+        f'<div class="reason-chip">{esc(reason)}</div>' for reason in format_reason_block(prediction["top_reasons"])
+    )
+    st.markdown(f'<div class="reason-list">{reasons_html}</div>', unsafe_allow_html=True)
+
+    st.markdown("### Retention Action")
+    st.markdown(f'<div class="action-box">{esc(prediction["retention_action"])}</div>', unsafe_allow_html=True)
+
+    st.markdown("### Business Summary")
+    st.info(prediction["business_summary"])
+
+    if complaint_text is not None:
+        with st.expander("Complaint Context"):
+            st.write(complaint_text)
+
+
+def build_manual_input_form() -> pd.DataFrame:
+    st.markdown("### Build A Customer Scenario")
+    st.caption("Change the account profile, then score the scenario against the saved model.")
+
+    with st.form("manual_customer_input"):
+        profile_col, billing_col, service_col = st.columns(3)
+
+        with profile_col:
+            st.markdown("**Profile**")
             gender = st.selectbox("Gender", ["Female", "Male"])
             senior = st.selectbox("Senior Citizen", [0, 1], format_func=lambda x: "Yes" if x else "No")
             dependents = st.selectbox("Dependents", [0, 1], format_func=lambda x: "Yes" if x else "No")
             tenure = st.slider("Tenure (months)", 0, 72, 12)
             contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
 
-        with col2:
+        with billing_col:
+            st.markdown("**Billing**")
             payment_method = st.selectbox(
                 "Payment Method",
                 [
@@ -70,28 +497,34 @@ def build_manual_input_form() -> pd.DataFrame:
             )
             monthly_charges = st.slider("Monthly Charges", 15.0, 130.0, 70.0, 0.5)
             total_charges = st.slider("Total Charges", 0.0, 9000.0, 1500.0, 0.5)
-            phone_service = st.selectbox("Phone Service", [0, 1], format_func=lambda x: "Yes" if x else "No")
             paperless = st.selectbox("Paperless Billing", [0, 1], format_func=lambda x: "Yes" if x else "No")
+            high_value_customer = int(monthly_charges > 80)
 
-        with col3:
+        with service_col:
+            st.markdown("**Service Signals**")
+            phone_service = st.selectbox("Phone Service", [0, 1], format_func=lambda x: "Yes" if x else "No")
             device_protection = st.selectbox("Device Protection", [0, 1], format_func=lambda x: "Yes" if x else "No")
             tech_support = st.selectbox("Tech Support", [0, 1], format_func=lambda x: "Yes" if x else "No")
             has_internet = st.selectbox("Has Internet", [0, 1], format_func=lambda x: "Yes" if x else "No")
             fiber_user = st.selectbox("Fiber User", [0, 1], format_func=lambda x: "Yes" if x else "No")
-            num_complaints = st.slider("Complaint Count", 0, 5, 1)
 
-        complaint_negative_score = st.slider("Negative Complaint Keyword Score", 0, 10, min(num_complaints, 3))
-        complaint_text_length = st.slider("Complaint Text Length", 0, 1200, 120)
-        billing_issue_flag = st.checkbox("Billing Issue Mentioned")
-        technical_issue_flag = st.checkbox("Technical Issue Mentioned")
-        service_issue_flag = st.checkbox("Service Issue Mentioned")
+        st.markdown("**Complaint Context**")
+        complaint_col1, complaint_col2, complaint_col3 = st.columns(3)
+        with complaint_col1:
+            num_complaints = st.slider("Complaint Count", 0, 5, 1)
+            complaint_negative_score = st.slider("Negative Keyword Score", 0, 10, min(num_complaints, 3))
+        with complaint_col2:
+            complaint_text_length = st.slider("Complaint Text Length", 0, 1200, 120)
+            billing_issue_flag = st.checkbox("Billing Issue Mentioned")
+        with complaint_col3:
+            technical_issue_flag = st.checkbox("Technical Issue Mentioned")
+            service_issue_flag = st.checkbox("Service Issue Mentioned")
 
         submitted = st.form_submit_button("Score Customer")
 
     if not submitted:
         return pd.DataFrame()
 
-    # i recreate the engineered fields here so custom demo inputs match the training schema.
     if tenure <= 12:
         tenure_group = "new"
     elif tenure <= 24:
@@ -104,7 +537,6 @@ def build_manual_input_form() -> pd.DataFrame:
     payment_risk = int(monthly_charges > 70 or contract == "Month-to-month")
     low_engagement = int(tenure < 12)
     support_calls = min(6, num_complaints + (1 if service_issue_flag else 0))
-    high_value_customer = int(monthly_charges > 80)
     has_complaint = int(num_complaints > 0)
     complaint_negative_flag = int(complaint_negative_score > 0)
 
@@ -140,93 +572,236 @@ def build_manual_input_form() -> pd.DataFrame:
     return pd.DataFrame([manual_record])
 
 
-def render_prediction_card(prediction: pd.Series, actual_churn=None, customer_id=None, complaint_text=None):
-    # i use one shared card renderer so dataset rows and manual scenarios look the same in the app.
-    top_left, top_mid, top_right = st.columns(3)
-    top_left.metric("Customer ID", customer_id or "Custom Input")
-    top_mid.metric("Actual Churn", "-" if actual_churn is None else int(actual_churn))
-    top_right.metric("Predicted Churn", int(prediction["predicted_churn"]))
+def render_profile(customer_record: pd.Series) -> None:
+    profile_columns = [
+        "gender",
+        "SeniorCitizen",
+        "Dependents",
+        "tenure",
+        "Contract",
+        "PaymentMethod",
+        "MonthlyCharges",
+        "TotalCharges",
+        "num_complaints",
+        "support_calls",
+        "tenure_group",
+        "fiber_user",
+    ]
+    items = []
+    for column in profile_columns:
+        value = customer_record[column]
+        if column in {"MonthlyCharges", "TotalCharges"}:
+            value = f"${float(value):,.2f}"
+        items.append(
+            f"""
+            <div class="profile-item">
+                <span>{esc(column.replace("_", " "))}</span>
+                <strong>{esc(value)}</strong>
+            </div>
+            """
+        )
 
-    risk_col, prob_col, band_col = st.columns(3)
-    risk_col.metric("Churn Probability", f"{prediction['churn_probability']:.1%}")
-    prob_col.metric("Risk Band", prediction["risk_band"].title())
-    band_col.metric("Priority", "Immediate" if prediction["risk_band"] == "high" else "Monitor")
+    st.markdown(f'<div class="profile-grid">{"".join(items)}</div>', unsafe_allow_html=True)
 
-    st.subheader("Business Summary")
-    st.info(prediction["business_summary"])
 
-    st.subheader("Top Reasons")
-    for reason in format_reason_block(prediction["top_reasons"]):
-        st.write(f"- {reason}")
+def risk_distribution_chart(scored: pd.DataFrame):
+    chart_data = scored["risk_band"].value_counts().reindex(RISK_ORDER, fill_value=0).reset_index()
+    chart_data.columns = ["risk_band", "customers"]
+    return (
+        alt.Chart(chart_data)
+        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
+        .encode(
+            x=alt.X("risk_band:N", sort=RISK_ORDER, title="Risk band"),
+            y=alt.Y("customers:Q", title="Customers"),
+            color=alt.Color(
+                "risk_band:N",
+                scale=alt.Scale(domain=RISK_ORDER, range=[RISK_COLORS[item] for item in RISK_ORDER]),
+                legend=None,
+            ),
+            tooltip=["risk_band", "customers"],
+        )
+        .properties(height=280)
+    )
 
-    st.subheader("Recommended Retention Action")
-    st.success(prediction["retention_action"])
 
-    if complaint_text is not None:
-        st.subheader("Complaint Context")
-        st.write(complaint_text)
+def contract_risk_chart(scored: pd.DataFrame):
+    chart_data = (
+        scored.groupby("Contract", as_index=False)
+        .agg(avg_probability=("churn_probability", "mean"), customers=("customerID", "count"))
+        .sort_values("avg_probability", ascending=False)
+    )
+    return (
+        alt.Chart(chart_data)
+        .mark_bar(cornerRadiusTopRight=6, cornerRadiusBottomRight=6, color="#2A8FB8")
+        .encode(
+            y=alt.Y("Contract:N", sort="-x", title="Contract"),
+            x=alt.X("avg_probability:Q", title="Average churn probability", axis=alt.Axis(format="%")),
+            tooltip=[
+                "Contract",
+                alt.Tooltip("avg_probability:Q", format=".1%"),
+                "customers:Q",
+            ],
+        )
+        .properties(height=260)
+    )
+
+
+def render_portfolio_insights(scored: pd.DataFrame) -> None:
+    high_risk = scored[scored["risk_band"] == "high"]
+    medium_or_high = scored[scored["risk_band"].isin(["medium", "high"])]
+    top_10_risk = scored.sort_values("churn_probability", ascending=False).head(10)["churn_probability"].mean()
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("High-risk customers", f"{len(high_risk):,}")
+    col2.metric("Medium + high watchlist", f"{len(medium_or_high):,}")
+    col3.metric("Top 10 average risk", format_probability(top_10_risk))
+
+    chart_col1, chart_col2 = st.columns([1, 1])
+    with chart_col1:
+        st.markdown("### Risk Distribution")
+        st.altair_chart(risk_distribution_chart(scored), width="stretch")
+    with chart_col2:
+        st.markdown("### Contract Risk")
+        st.altair_chart(contract_risk_chart(scored), width="stretch")
+
+    st.markdown("### Highest Priority Accounts")
+    display = scored.sort_values("churn_probability", ascending=False).head(12).copy()
+    display["churn_probability"] = display["churn_probability"].map(format_probability)
+    st.dataframe(
+        display[
+            [
+                "customerID",
+                "risk_band",
+                "churn_probability",
+                "Contract",
+                "tenure",
+                "MonthlyCharges",
+                "num_complaints",
+                "support_calls",
+            ]
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.markdown("### Visual Signals")
+    image_specs = [
+        ("Churn distribution", EDA_DIR / "churn_distribution.png"),
+        ("Contract churn rate", EDA_DIR / "contract_churn_rate.png"),
+        ("Payment method risk", EDA_DIR / "payment_method_churn_rate.png"),
+        ("Complaint signal", EDA_DIR / "complaints_by_churn.png"),
+    ]
+    image_cols = st.columns(2)
+    for idx, (caption, path) in enumerate(image_specs):
+        with image_cols[idx % 2]:
+            if path.exists():
+                st.image(str(path), width="stretch")
+                st.markdown(f'<div class="eda-caption">{esc(caption)}</div>', unsafe_allow_html=True)
+
+
+def render_curated_cases() -> None:
+    st.markdown("### Ready-Made Customer Stories")
+    st.caption("Use these to walk through the model narrative quickly in a demo.")
+    case_cols = st.columns(3)
+    for idx, case in enumerate(load_curated_cases()):
+        color = RISK_COLORS.get(case["risk_band"], "#2A8FB8")
+        with case_cols[idx % 3]:
+            reasons_html = "".join(
+                f'<div class="reason-chip">{esc(reason)}</div>' for reason in case["top_reasons"]
+            )
+            st.markdown(
+                f"""
+                <div class="case-card" style="border-top: 4px solid {color};">
+                    <div class="c-eyebrow" style="color: {color};">{esc(case["risk_band"])} risk</div>
+                    <h3>{esc(case["title"])}</h3>
+                    <div style="font-size: 2rem; font-weight: 900;">{format_probability(case["churn_probability"])}</div>
+                    <p class="c-small">{esc(case["business_summary"])}</p>
+                    <div class="reason-list">{reasons_html}</div>
+                    <div style="margin-top: 0.8rem;" class="action-box">{esc(case["retention_action"])}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_model_notes(model, metadata: dict, metrics: pd.DataFrame) -> None:
+    st.markdown("### Current Model Metrics")
+    metric_table = metrics.copy()
+    for column in ["accuracy", "precision", "recall", "f1", "roc_auc"]:
+        metric_table[column] = metric_table[column].map(lambda value: f"{value:.3f}")
+    st.dataframe(metric_table, width="stretch")
+
+    st.markdown("### Global Model Drivers")
+    insights = get_global_feature_insights(model)
+    if insights.empty:
+        st.warning("Global coefficient insights are not available for the selected model.")
+    else:
+        insight_display = insights[["feature", "label", "direction", "impact"]].rename(
+            columns={"label": "business_label"}
+        )
+        st.dataframe(insight_display, width="stretch", hide_index=True)
+        st.caption("These are global model tendencies from the selected model, not guaranteed per-customer reasons.")
+
+    st.markdown("### Deployment Footprint")
+    dep_cols = st.columns(3)
+    dep_cols[0].metric("Features", len(metadata["feature_columns"]))
+    dep_cols[1].metric("Train rows", f"{metadata['train_shape'][0]:,}")
+    dep_cols[2].metric("Test rows", f"{metadata['test_shape'][0]:,}")
 
 
 def main():
-    # i want the first screen to feel like a polished demo, not just a dataframe dump.
-    st.set_page_config(page_title="Churn Intelligence Platform", layout="wide")
-
-    st.title("Churn Intelligence Platform")
-    st.caption(
-        "Recruiter-friendly churn intelligence demo with structured features, complaint enrichment, "
-        "explanations, and retention guidance."
-    )
+    st.set_page_config(page_title="Churn Intelligence Platform", layout="wide", page_icon="CI")
+    inject_css()
 
     dataset = load_processed_data()
     model, metadata = load_artifacts()
+    metrics = load_metrics()
+    scored = score_dataset_quick(dataset, metadata, model)
 
-    st.sidebar.header("Demo Controls")
-    view_mode = st.sidebar.radio("View Mode", ["Dataset Customer", "Custom Customer"])
+    render_header(dataset, metadata, metrics)
 
-    overview_left, overview_mid, overview_right = st.columns(3)
-    overview_left.metric("Dataset Rows", len(dataset))
-    overview_mid.metric("Selected Model", metadata["selected_model"].replace("_", " ").title())
-    overview_right.metric("Feature Count", len(metadata["feature_columns"]))
+    st.sidebar.markdown("## Demo Controls")
+    view_mode = st.sidebar.radio("Scoring Mode", ["Dataset Customer", "Custom Customer"])
+    risk_lens = st.sidebar.selectbox("Dataset Risk Lens", ["All", "High", "Medium", "Low"])
+    sort_mode = st.sidebar.selectbox("Sort Dataset By", ["Highest risk", "Lowest risk", "Original order"])
 
-    st.divider()
-
-    tabs = st.tabs(["Prediction Workspace", "Model Insights", "Curated Customer Stories"])
+    tabs = st.tabs(["Score Customer", "Portfolio Insights", "Customer Stories", "Model Notes"])
 
     with tabs[0]:
         if view_mode == "Dataset Customer":
-            customer_index = st.sidebar.slider(
-                "Select a customer record",
-                min_value=0,
-                max_value=len(dataset) - 1,
-                value=0,
-                step=1,
+            filtered = scored.copy()
+            if risk_lens != "All":
+                filtered = filtered[filtered["risk_band"] == risk_lens.lower()]
+
+            if sort_mode == "Highest risk":
+                filtered = filtered.sort_values("churn_probability", ascending=False)
+            elif sort_mode == "Lowest risk":
+                filtered = filtered.sort_values("churn_probability", ascending=True)
+
+            filtered = filtered.reset_index()
+            if filtered.empty:
+                st.warning("No customers match that risk lens.")
+                return
+
+            choice_label = st.sidebar.selectbox(
+                "Select Customer",
+                filtered.index,
+                format_func=lambda idx: (
+                    f"{filtered.loc[idx, 'customerID']} - "
+                    f"{filtered.loc[idx, 'risk_band'].title()} - "
+                    f"{format_probability(filtered.loc[idx, 'churn_probability'])}"
+                ),
             )
-            selected_row = dataset.iloc[[customer_index]].copy()
+            source_index = int(filtered.loc[choice_label, "index"])
+            selected_row = dataset.iloc[[source_index]].copy()
             customer_record = selected_row.iloc[0]
             feature_frame = selected_row.drop(columns=["customerID", "Churn", "complaints"], errors="ignore")
             prediction = predict_dataframe(feature_frame, model=model, metadata=metadata).iloc[0]
 
-            left_col, right_col = st.columns([1.2, 1])
+            left_col, right_col = st.columns([0.95, 1.05])
             with left_col:
-                st.subheader("Customer Profile")
-                profile_columns = [
-                    "gender",
-                    "SeniorCitizen",
-                    "Dependents",
-                    "tenure",
-                    "Contract",
-                    "PaymentMethod",
-                    "MonthlyCharges",
-                    "TotalCharges",
-                    "num_complaints",
-                    "support_calls",
-                    "tenure_group",
-                    "has_internet",
-                    "fiber_user",
-                ]
-                profile_data = {column: customer_record[column] for column in profile_columns}
-                st.dataframe(pd.DataFrame(profile_data.items(), columns=["Field", "Value"]), use_container_width=True)
-
+                st.markdown("### Customer Profile")
+                render_profile(customer_record)
             with right_col:
                 render_prediction_card(
                     prediction,
@@ -238,46 +813,23 @@ def main():
             manual_df = build_manual_input_form()
             if not manual_df.empty:
                 prediction = predict_dataframe(manual_df, model=model, metadata=metadata).iloc[0]
+                st.markdown("### Scenario Result")
                 render_prediction_card(prediction, customer_id="Manual Scenario")
             else:
-                st.info("Fill out the form and click `Score Customer` to generate a live churn intelligence summary.")
+                st.info("Create a profile and score it to generate a live churn intelligence summary.")
 
     with tabs[1]:
-        st.subheader("Current Model Metrics")
-        st.dataframe(load_metrics(), use_container_width=True)
-
-        st.subheader("Top Global Model Drivers")
-        insights = get_global_feature_insights(model)
-        if insights.empty:
-            st.warning("Global coefficient insights are not available for the selected model.")
-        else:
-            st.dataframe(
-                insights[["feature", "label", "direction", "impact"]].rename(
-                    columns={"label": "business_label"}
-                ),
-                use_container_width=True,
-            )
-            st.caption(
-                "These are global model tendencies from the selected model, not guaranteed per-customer explanations."
-            )
+        render_portfolio_insights(scored)
 
     with tabs[2]:
-        st.subheader("Curated Customer Stories")
-        for case in load_curated_cases():
-            with st.container(border=True):
-                st.markdown(f"**{case['title']}**")
-                st.write(
-                    f"Risk band: {case['risk_band'].title()} | "
-                    f"Churn probability: {case['churn_probability']:.1%}"
-                )
-                for reason in case["top_reasons"]:
-                    st.write(f"- {reason}")
-                st.write(case["retention_action"])
-                st.caption(case["business_summary"])
+        render_curated_cases()
+
+    with tabs[3]:
+        render_model_notes(model, metadata, metrics)
 
     st.caption(
-        "Complaint enrichment is lightweight synthetic augmentation using TWCS text. "
-        "It improves the project narrative but is not a true customer-level support join."
+        "Complaint enrichment is lightweight synthetic augmentation. The demo is designed for portfolio storytelling, "
+        "not production customer-level support matching."
     )
 
 

@@ -1,0 +1,38 @@
+[
+  {
+    "title": "High-risk complaint-heavy customer",
+    "risk_band": "high",
+    "churn_probability": 0.8434549126334674,
+    "top_reasons": [
+      "short tenure suggests the customer is still early in the lifecycle",
+      "month-to-month contract increases churn risk",
+      "higher monthly charges can increase price sensitivity"
+    ],
+    "retention_action": "Offer a billing review, clarify charges, and test an autopay or plan-fit incentive.",
+    "business_summary": "Customer is in the high churn-risk band at 84.3%. Primary signals: short tenure suggests the customer is still early in the lifecycle; month-to-month contract increases churn risk. Recommended action: Offer a billing review, clarify charges, and test an autopay or plan-fit incentive."
+  },
+  {
+    "title": "Medium-risk onboarding customer",
+    "risk_band": "medium",
+    "churn_probability": 0.6494622716372019,
+    "top_reasons": [
+      "short tenure suggests the customer is still early in the lifecycle",
+      "month-to-month contract increases churn risk",
+      "low engagement suggests weak product stickiness"
+    ],
+    "retention_action": "Offer a billing review, clarify charges, and test an autopay or plan-fit incentive.",
+    "business_summary": "Customer is in the medium churn-risk band at 64.9%. Primary signals: short tenure suggests the customer is still early in the lifecycle; month-to-month contract increases churn risk. Recommended action: Offer a billing review, clarify charges, and test an autopay or plan-fit incentive."
+  },
+  {
+    "title": "Low-risk stable customer",
+    "risk_band": "low",
+    "churn_probability": 0.0017005065941961,
+    "top_reasons": [
+      "longer tenure is helping retention",
+      "contract structure is helping retention",
+      "pricing profile is not heavily pressuring retention"
+    ],
+    "retention_action": "Maintain standard engagement with a routine health-check and renewal reminder.",
+    "business_summary": "Customer is in the low churn-risk band at 0.2%. Primary signals: longer tenure is helping retention; contract structure is helping retention. Recommended action: Maintain standard engagement with a routine health-check and renewal reminder."
+  }
+]
