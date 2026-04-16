@@ -148,20 +148,45 @@ def inject_css() -> None:
         section[data-testid="stSidebar"] label,
         section[data-testid="stSidebar"] p,
         section[data-testid="stSidebar"] span {
-            color: var(--ink);
+            color: var(--ink) !important;
         }
 
-        div[data-baseweb="select"] > div,
-        div[data-testid="stSelectbox"] div,
-        div[role="radiogroup"] label,
-        div[data-testid="stCheckbox"] label,
-        div[data-testid="stSlider"] label {
-            color: var(--ink);
+        div[data-baseweb="select"],
+        div[data-baseweb="select"] *,
+        div[data-testid="stSelectbox"] *,
+        div[role="radiogroup"] *,
+        div[data-testid="stCheckbox"] *,
+        div[data-testid="stSlider"] *,
+        div[data-testid="stNumberInput"] * {
+            color: var(--ink) !important;
         }
 
         div[data-baseweb="select"] > div {
-            background: #FFFFFF;
-            border-color: var(--line);
+            background: #FFFFFF !important;
+            border: 1px solid var(--line) !important;
+            box-shadow: none !important;
+        }
+
+        div[data-baseweb="select"] svg,
+        div[data-testid="stCheckbox"] svg,
+        div[role="radiogroup"] svg {
+            color: var(--ink) !important;
+            fill: var(--ink) !important;
+        }
+
+        div[data-testid="stCheckbox"] div[role="checkbox"],
+        div[role="radiogroup"] div[role="radio"] {
+            background: #FFFFFF !important;
+            border-color: #4B5563 !important;
+        }
+
+        div[data-testid="stSlider"] [data-baseweb="slider"] div {
+            color: var(--ink) !important;
+        }
+
+        div[data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] {
+            background: var(--mint) !important;
+            border-color: var(--mint) !important;
         }
 
         .block-container {
@@ -185,11 +210,46 @@ def inject_css() -> None:
 
         div[data-testid="stMetric"] label,
         div[data-testid="stMetric"] [data-testid="stMetricLabel"] {
-            color: var(--muted);
+            color: var(--muted) !important;
+            opacity: 1 !important;
+        }
+
+        div[data-testid="stMetric"] [data-testid="stMetricValue"],
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] * {
+            color: var(--ink) !important;
+            opacity: 1 !important;
         }
 
         div[data-testid="stTabs"] button {
             border-radius: 8px 8px 0 0;
+        }
+
+        button[data-baseweb="tab"],
+        div[data-testid="stTabs"] button {
+            background: #FFFFFF !important;
+            border: 1px solid var(--line) !important;
+            border-bottom: 2px solid var(--line) !important;
+            color: var(--ink) !important;
+            opacity: 1 !important;
+        }
+
+        button[data-baseweb="tab"] *,
+        div[data-testid="stTabs"] button *,
+        div[data-testid="stTabs"] p,
+        div[data-testid="stTabs"] span {
+            color: var(--ink) !important;
+            opacity: 1 !important;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"],
+        div[data-testid="stTabs"] button[aria-selected="true"] {
+            background: #EAF7F3 !important;
+            border-color: var(--mint) !important;
+        }
+
+        button[data-baseweb="tab"]:hover,
+        div[data-testid="stTabs"] button:hover {
+            background: #F4FBF8 !important;
         }
 
         .stButton > button, .stFormSubmitButton > button {
@@ -237,26 +297,6 @@ def inject_css() -> None:
             line-height: 1.55;
             max-width: 760px;
             margin: 0.8rem 0 1.1rem;
-        }
-
-        .c-status {
-            background: #15171A;
-            color: #FFFFFF !important;
-            border-radius: 8px;
-            padding: 0.7rem 0.85rem;
-            min-width: 165px;
-            text-align: center;
-            box-shadow: 0 14px 32px rgba(17, 23, 20, 0.20);
-        }
-
-        .c-status span,
-        .c-status strong {
-            color: #FFFFFF !important;
-        }
-
-        .c-status strong {
-            display: block;
-            font-size: 1.25rem;
         }
 
         .c-card {
@@ -385,11 +425,6 @@ def inject_css() -> None:
                 display: block;
             }
 
-            .c-status {
-                margin-top: 1rem;
-                text-align: left;
-            }
-
         }
         </style>
         """,
@@ -439,12 +474,11 @@ def card(title: str, value: str, detail: str, accent: str = "#0F9F7E") -> None:
 
 
 def render_header(dataset: pd.DataFrame, metadata: dict, metrics: pd.DataFrame) -> None:
-    selected_model = metadata["selected_model"].replace("_", " ").title()
     selected_metrics = metrics.loc[metadata["selected_model"]]
     churn_rate = dataset["Churn"].mean()
 
     st.markdown(
-        f"""
+        """
         <div class="c-topline">
             <div>
                 <div class="c-eyebrow">Retention intelligence cockpit</div>
@@ -453,10 +487,6 @@ def render_header(dataset: pd.DataFrame, metadata: dict, metrics: pd.DataFrame) 
                     Score live customer profiles, explain the risk drivers, and turn model output into a focused
                     retention action without leaving the dashboard.
                 </p>
-            </div>
-            <div class="c-status">
-                <span>Selected model</span>
-                <strong>{esc(selected_model)}</strong>
             </div>
         </div>
         """,
