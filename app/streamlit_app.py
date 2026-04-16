@@ -32,6 +32,35 @@ RISK_COPY = {
     "medium": "Watch closely. A focused touchpoint can change the path.",
     "high": "Move now. The customer needs a clear save motion.",
 }
+PROFILE_GROUPS = [
+    (
+        "Account",
+        [
+            ("Customer ID", "customerID"),
+            ("Contract", "Contract"),
+            ("Tenure", "tenure"),
+            ("Monthly Charges", "MonthlyCharges"),
+        ],
+    ),
+    (
+        "Relationship",
+        [
+            ("Gender", "gender"),
+            ("Senior Citizen", "SeniorCitizen"),
+            ("Dependents", "Dependents"),
+            ("Payment Method", "PaymentMethod"),
+        ],
+    ),
+    (
+        "Service Signals",
+        [
+            ("Tech Support", "TechSupport"),
+            ("Device Protection", "DeviceProtection"),
+            ("Complaint Count", "num_complaints"),
+            ("Support Calls", "support_calls"),
+        ],
+    ),
+]
 
 
 @st.cache_data
@@ -90,10 +119,10 @@ def inject_css() -> None:
         :root {
             --ink: #15171A;
             --muted: #596169;
-            --line: #D8DED7;
+            --line: #DDE5E0;
             --paper: #FFFFFF;
-            --wash: #F6F8F5;
-            --mint: #0F9F7E;
+            --wash: #F7F9F6;
+            --mint: #11836F;
             --coral: #E85F5C;
             --sky: #2A8FB8;
             --sun: #F0B429;
@@ -101,24 +130,42 @@ def inject_css() -> None:
 
         .stApp {
             background:
-                linear-gradient(180deg, rgba(246, 248, 245, 0.96), rgba(255, 255, 255, 0.98)),
-                radial-gradient(circle at top left, rgba(15, 159, 126, 0.11), transparent 34%),
-                radial-gradient(circle at top right, rgba(232, 95, 92, 0.10), transparent 30%);
+                linear-gradient(180deg, #F7F9F6 0%, #FFFFFF 36%, #F8FBFB 100%),
+                radial-gradient(circle at top left, rgba(17, 131, 111, 0.10), transparent 28%),
+                radial-gradient(circle at top right, rgba(232, 95, 92, 0.08), transparent 26%);
             color: var(--ink);
         }
 
         section[data-testid="stSidebar"] {
-            background: #111714;
-            color: #F7FAF7;
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: #FFFFFF;
+            border-right: 1px solid var(--line);
+            box-shadow: 10px 0 30px rgba(21, 23, 26, 0.05);
         }
 
-        section[data-testid="stSidebar"] * {
-            color: #F7FAF7;
+        section[data-testid="stSidebar"] h1,
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] h3,
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] span {
+            color: var(--ink);
+        }
+
+        div[data-baseweb="select"] > div,
+        div[data-testid="stSelectbox"] div,
+        div[role="radiogroup"] label,
+        div[data-testid="stCheckbox"] label,
+        div[data-testid="stSlider"] label {
+            color: var(--ink);
+        }
+
+        div[data-baseweb="select"] > div {
+            background: #FFFFFF;
+            border-color: var(--line);
         }
 
         .block-container {
-            padding-top: 2.1rem;
+            padding-top: 2rem;
             padding-bottom: 3rem;
             max-width: 1220px;
         }
@@ -132,11 +179,12 @@ def inject_css() -> None:
             background: var(--paper);
             border: 1px solid var(--line);
             border-radius: 8px;
-            padding: 1rem 1.05rem;
-            box-shadow: 0 14px 32px rgba(21, 23, 26, 0.07);
+            padding: 0.9rem 0.95rem;
+            box-shadow: 0 12px 28px rgba(21, 23, 26, 0.06);
         }
 
-        div[data-testid="stMetric"] label {
+        div[data-testid="stMetric"] label,
+        div[data-testid="stMetric"] [data-testid="stMetricLabel"] {
             color: var(--muted);
         }
 
@@ -176,11 +224,11 @@ def inject_css() -> None:
         }
 
         .c-title {
-            font-size: clamp(2.1rem, 5vw, 4.4rem);
-            line-height: 1.02;
+            font-size: clamp(2rem, 4.6vw, 3.8rem);
+            line-height: 1.04;
             letter-spacing: 0;
             margin: 0;
-            max-width: 860px;
+            max-width: 900px;
         }
 
         .c-subtitle {
@@ -192,13 +240,18 @@ def inject_css() -> None:
         }
 
         .c-status {
-            background: #111714;
-            color: #FFFFFF;
+            background: #15171A;
+            color: #FFFFFF !important;
             border-radius: 8px;
             padding: 0.7rem 0.85rem;
             min-width: 165px;
             text-align: center;
             box-shadow: 0 14px 32px rgba(17, 23, 20, 0.20);
+        }
+
+        .c-status span,
+        .c-status strong {
+            color: #FFFFFF !important;
         }
 
         .c-status strong {
@@ -211,7 +264,7 @@ def inject_css() -> None:
             border: 1px solid var(--line);
             border-radius: 8px;
             padding: 1rem;
-            box-shadow: 0 14px 34px rgba(21, 23, 26, 0.07);
+            box-shadow: 0 12px 30px rgba(21, 23, 26, 0.06);
             min-height: 100%;
         }
 
@@ -227,15 +280,20 @@ def inject_css() -> None:
         }
 
         .risk-card {
-            background: #111714;
+            background: linear-gradient(135deg, #15171A 0%, #18332D 100%);
             color: #FFFFFF;
             border-radius: 8px;
             padding: 1.15rem;
             box-shadow: 0 20px 40px rgba(17, 23, 20, 0.20);
         }
 
-        .risk-card h2, .risk-card h3, .risk-card p {
-            color: #FFFFFF;
+        .risk-card,
+        .risk-card h2,
+        .risk-card h3,
+        .risk-card p,
+        .risk-card strong,
+        .risk-card div {
+            color: #FFFFFF !important;
         }
 
         .risk-score {
@@ -256,6 +314,10 @@ def inject_css() -> None:
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.04em;
+        }
+
+        .risk-card .risk-pill {
+            color: #111714 !important;
         }
 
         .meter {
@@ -285,6 +347,7 @@ def inject_css() -> None:
             border-radius: 8px;
             padding: 0.7rem 0.8rem;
             line-height: 1.42;
+            color: var(--ink);
         }
 
         .action-box {
@@ -296,30 +359,6 @@ def inject_css() -> None:
             font-weight: 650;
         }
 
-        .profile-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.65rem;
-        }
-
-        .profile-item {
-            background: #FFFFFF;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 0.72rem 0.78rem;
-        }
-
-        .profile-item span {
-            display: block;
-            color: var(--muted);
-            font-size: 0.78rem;
-            margin-bottom: 0.15rem;
-        }
-
-        .profile-item strong {
-            word-break: break-word;
-        }
-
         .case-card {
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -327,6 +366,12 @@ def inject_css() -> None:
             padding: 1rem;
             min-height: 100%;
             box-shadow: 0 14px 32px rgba(21, 23, 26, 0.06);
+        }
+
+        .case-card h3,
+        .case-card p,
+        .case-card div {
+            color: var(--ink);
         }
 
         .eda-caption {
@@ -345,9 +390,6 @@ def inject_css() -> None:
                 text-align: left;
             }
 
-            .profile-grid {
-                grid-template-columns: 1fr;
-            }
         }
         </style>
         """,
@@ -365,6 +407,22 @@ def format_reason_block(reasons: str) -> list[str]:
 
 def format_probability(value: float) -> str:
     return f"{value:.1%}"
+
+
+def yes_no(value) -> str:
+    return "Yes" if int(value) == 1 else "No"
+
+
+def format_profile_value(label: str, value) -> str:
+    if label in {"Monthly Charges", "Total Charges"}:
+        return f"${float(value):,.2f}"
+    if label == "Tenure":
+        return f"{int(value)} months"
+    if label in {"Senior Citizen", "Dependents", "Tech Support", "Device Protection"}:
+        return yes_no(value)
+    if label in {"Complaint Count", "Support Calls"}:
+        return f"{int(value)}"
+    return str(value).replace("_", " ").title() if label == "Tenure Segment" else str(value)
 
 
 def card(title: str, value: str, detail: str, accent: str = "#0F9F7E") -> None:
@@ -573,35 +631,13 @@ def build_manual_input_form() -> pd.DataFrame:
 
 
 def render_profile(customer_record: pd.Series) -> None:
-    profile_columns = [
-        "gender",
-        "SeniorCitizen",
-        "Dependents",
-        "tenure",
-        "Contract",
-        "PaymentMethod",
-        "MonthlyCharges",
-        "TotalCharges",
-        "num_complaints",
-        "support_calls",
-        "tenure_group",
-        "fiber_user",
-    ]
-    items = []
-    for column in profile_columns:
-        value = customer_record[column]
-        if column in {"MonthlyCharges", "TotalCharges"}:
-            value = f"${float(value):,.2f}"
-        items.append(
-            f"""
-            <div class="profile-item">
-                <span>{esc(column.replace("_", " "))}</span>
-                <strong>{esc(value)}</strong>
-            </div>
-            """
-        )
-
-    st.markdown(f'<div class="profile-grid">{"".join(items)}</div>', unsafe_allow_html=True)
+    for title, fields in PROFILE_GROUPS:
+        with st.container(border=True):
+            st.markdown(f"**{title}**")
+            cols = st.columns(2)
+            for idx, (label, column) in enumerate(fields):
+                with cols[idx % 2]:
+                    st.metric(label, format_profile_value(label, customer_record[column]))
 
 
 def risk_distribution_chart(scored: pd.DataFrame):
