@@ -3,11 +3,9 @@
 I built this project to go beyond a basic churn prediction notebook and turn it into a more complete churn intelligence system. The goal was to keep the project practical and readable while still showing a strong end-to-end story: structured churn modeling, complaint-aware enrichment, explainable outputs, and retention-oriented recommendations.
 
 ## Live demo
-The deployed app is live on Render:
+The deployed app is live on Streamlit Community Cloud:
 
-**[https://churn-intelligence-platform-yx8d.onrender.com](https://churn-intelligence-platform-yx8d.onrender.com)**
-
-Render is the deployment target for this project because the app runs as a Streamlit Python service with sklearn model artifacts. Vercel is better suited for static and serverless frontend apps, while Render can run the long-lived Streamlit process directly from this GitHub repository.
+**[https://churn-intelligence-platform.streamlit.app](https://churn-intelligence-platform.streamlit.app)**
 
 ## Project overview
 This project uses the Telco Customer Churn dataset as the structured foundation and enriches it with lightweight complaint-style signals derived from the TWCS dataset. Instead of focusing only on classification accuracy, I wanted the final output to feel closer to a business-facing churn analytics product.
@@ -26,8 +24,7 @@ For each customer, the system can produce:
 - `src/inference.py` handles prediction, explanations, and retention suggestions
 - `src/generate_eda.py` creates reusable EDA plots
 - `app/streamlit_app.py` runs the demo app
-- `requirements.txt` pins the app and modeling dependencies for deployment
-- `render.yaml` defines the Render web service configuration
+- `requirements.txt` pins all dependencies for Streamlit Community Cloud deployment
 - `data/processed/final_data.csv` stores the cleaned training dataset
 - `data/processed/test_predictions.csv` stores holdout predictions with business outputs
 - `models/` stores the saved pipelines and metadata
@@ -83,19 +80,15 @@ streamlit run app/streamlit_app.py
 ```
 
 ## Deployment
-The production app is deployed as a Render web service named `churn-intelligence-platform`.
+The app is deployed on [Streamlit Community Cloud](https://streamlit.io/cloud) connected to this GitHub repository.
 
-Render build command:
+To deploy your own fork:
+1. Go to [share.streamlit.io](https://share.streamlit.io)
+2. Connect your GitHub account
+3. Select this repo, branch `main`, entrypoint `app/streamlit_app.py`
+4. Click Deploy
 
-```bash
-pip install -r requirements.txt
-```
-
-Render start command:
-
-```bash
-streamlit run app/streamlit_app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true --browser.gatherUsageStats false
-```
+Streamlit Community Cloud installs `requirements.txt` automatically and runs the app. No additional configuration needed.
 
 The deployment uses the tracked lightweight runtime artifacts:
 - `data/processed/final_data.csv`
