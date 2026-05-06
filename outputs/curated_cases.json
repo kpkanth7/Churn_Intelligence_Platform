@@ -2,7 +2,7 @@
   {
     "title": "High-risk complaint-heavy customer",
     "risk_band": "high",
-    "churn_probability": 0.8434549126334674,
+    "churn_probability": 0.842782252828956,
     "top_reasons": [
       "short tenure suggests the customer is still early in the lifecycle",
       "month-to-month contract increases churn risk",
@@ -14,7 +14,7 @@
   {
     "title": "Medium-risk onboarding customer",
     "risk_band": "medium",
-    "churn_probability": 0.6494622716372019,
+    "churn_probability": 0.6493982608482766,
     "top_reasons": [
       "short tenure suggests the customer is still early in the lifecycle",
       "month-to-month contract increases churn risk",
@@ -26,7 +26,7 @@
   {
     "title": "Low-risk stable customer",
     "risk_band": "low",
-    "churn_probability": 0.0017005065941961,
+    "churn_probability": 0.0016842982716316,
     "top_reasons": [
       "longer tenure is helping retention",
       "contract structure is helping retention",

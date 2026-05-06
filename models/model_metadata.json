@@ -68,8 +68,8 @@
     1409,
     27
   ],
-  "processed_data_path": "/Users/pradhyumnakasula/Churn_Intelligence_Platform/data/processed/final_data.csv",
-  "best_model_path": "/Users/pradhyumnakasula/Churn_Intelligence_Platform/models/best_model_pipeline.pkl",
+  "processed_data_path": "/Users/pradhyumnakasula/Churn_Intelligence_Platform/.claude/worktrees/upbeat-galileo-d8eeb6/data/processed/final_data.csv",
+  "best_model_path": "/Users/pradhyumnakasula/Churn_Intelligence_Platform/.claude/worktrees/upbeat-galileo-d8eeb6/models/best_model_pipeline.pkl",
   "target_distribution": {
     "0": 5174,
     "1": 1869
